@@ -1,0 +1,31 @@
+# These are some examples of commonly ignored file patterns.
+# You should customize this list as applicable to your project.
+# Learn more about .gitignore:
+#     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
+
+# Compiled Python bytecode
+*.py[cod]
+
+# Log files
+*.log
+
+# JetBrains IDE
+.idea/
+
+# Applications
+*.app
+*.exe
+*.war
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+# Output folders
+catalogue_output/
+
+mapping.json
