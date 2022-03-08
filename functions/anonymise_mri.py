@@ -597,7 +597,7 @@ class Anonymisation():
                                     os.path.join(self.target_directory, new_name))
                 shutil.rmtree(os.path.join(self.target_directory, new_name))
             
-        self.save_json_mapping()
+            self.save_json_mapping()
 
 
 if __name__ == '__main__':
