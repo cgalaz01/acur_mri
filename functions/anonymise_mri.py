@@ -9,6 +9,7 @@ import os
 import shutil
 import json
 
+from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, List, Tuple, Union
 from pathlib import Path
@@ -278,24 +279,33 @@ class Anonymisation():
         None
 
         """
-        os.makedirs(os.path.dirname(os.path.abspath(self.json_directory)), exist_ok=True)
+        retry_times = 20
+        Anonymisation.retry_function(retry_times, os.makedirs)(os.path.dirname(os.path.abspath(self.json_directory)), exist_ok=True)
         with open(self.json_directory, 'w') as fp:
-            Anonymisation.retry_function(20, json.dump)(self.mapping, fp)
+            Anonymisation.retry_function(retry_times, json.dump)(self.mapping, fp)
     
     
     def load_json_mapping(self) -> None:
         """
         Loads the json file that contains the mapping betwen the original and
-        the anonymised metadata, if it exists. 
+        the anonymised metadata, if it exists. A copy of the file is made with
+        the date appended.
 
         Returns
         -------
         None
 
         """
+        retry_times = 20
         if Anonymisation.isfile(self.json_directory):
+            # Make a backup copy of the json file
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            path = self.json_directory.parent
+            target_file_name = self.json_directory.stem + '_' + timestamp + self.json_directory.suffix
+            shutil.copy(self.json_directory, os.path.join(path, target_file_name))
+            
             with open(self.json_directory, 'r') as fp:
-                self.mapping = Anonymisation.retry_function(20, json.load)(fp)
+                self.mapping = Anonymisation.retry_function(retry_times, json.load)(fp)
     
 
     def extract_key_info(self, dataset: pydicom.Dataset) -> Dict[str, Any]:
@@ -575,6 +585,8 @@ class Anonymisation():
         None
 
         """
+        retry_times = 50
+        
         for patient_directory in self.patient_directory_yield(self.source_directory):
             if self.verbose == 1:
                 print('Anonymising directory {}'.format(patient_directory))
@@ -584,12 +596,12 @@ class Anonymisation():
                 
                 for dicom_file in self.dicom_directory_yield(sequence_directory):
                     # Read and anonymise
-                    dataset = Anonymisation.retry_function(50, pydicom.dcmread)(dicom_file, force=True)
+                    dataset = Anonymisation.retry_function(retry_times, pydicom.dcmread)(dicom_file, force=True)
                     dataset, new_name = self.anonymise_dicom(dataset)
                     # Save the anonymised DICOM file to target directory
-                    os.makedirs(os.path.join(self.target_directory, new_name), exist_ok=True)
+                    Anonymisation.retry_function(retry_times, os.makedirs)(os.path.join(self.target_directory, new_name), exist_ok=True)
                     file_name = sequence_name + '_' + os.path.basename(dicom_file)
-                    Anonymisation.retry_function(50, dataset.save_as)(os.path.join(self.target_directory, new_name, file_name))
+                    Anonymisation.retry_function(retry_times, dataset.save_as)(os.path.join(self.target_directory, new_name, file_name))
             
             # Compress the anonymised patient directory
             if compress:
