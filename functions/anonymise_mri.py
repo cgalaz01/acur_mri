@@ -3,16 +3,14 @@
 Anonymize DICOM data
 ====================
 
-pydicom tutorial in: https://pydicom.github.io/pydicom/stable/auto_examples/metadata_processing/plot_anonymize.html#sphx-glr-auto-examples-metadata-processing-plot-anonymize-py
-
-Marta, 23/10/2020 & 29/10/2020
 """
 
 import os
 import shutil
 import json
 
-from typing import Any, Dict, Tuple, Union
+from functools import wraps
+from typing import Any, Dict, List, Tuple, Union
 from pathlib import Path
 
 import pydicom
@@ -75,6 +73,130 @@ class Anonymisation():
     
     
     @staticmethod
+    def retry_function(times: int, function):
+        """
+        A wrapper function that will execute a given function upto 'times' in case
+        an exception was thrown. This is to be used to overcome network instabilities
+        when reading/writing files.
+
+        Parameters
+        ----------
+        times : int
+            The number of times to try executing a function in case an exception
+            was thrown.
+        function : TYPE
+            Function to execute multiple times in case of exception thrown.
+
+        Raises
+        ------
+        Exception
+            Raises original exception if all 'times' have failed with an exception.
+
+        Returns
+        -------
+        TYPE
+            Returns the results of the passed function.
+
+        """
+        @wraps(function)
+        def try_function(*args, **kwargs):
+            e = Exception('Retry Exception Failed.')
+            for i in range(times):
+                try:
+                    return function(*args, **kwargs)
+                except Exception as caught_exception:  
+                    e = caught_exception
+    
+            raise e
+    
+        return try_function
+    
+    
+    @staticmethod
+    def listdir(directory: Union[str, Path]) -> List[str]:
+        """
+        Wrapper for os.listdir. Repeats listdir call to overcome network instabilities.
+
+        Parameters
+        ----------
+        directory : Union[str, Path]
+            Directory to root folder.
+
+        Returns
+        -------
+        List[str]
+            File list.
+
+        """
+        repeat_times = 20
+        exception_repeat_times = 10
+        max_size = -1
+        selected_list = []
+        
+        for i in range(repeat_times):
+            try:
+                directory_list = Anonymisation.retry_function(exception_repeat_times, os.listdir)(directory)
+                size = len(directory_list)
+                if max_size < size:
+                    max_size = size
+                    selected_list = directory_list
+            except:
+                pass
+            
+        return selected_list
+    
+    
+    @staticmethod
+    def isdir(directory: Union[str, Path]) -> bool:
+        """
+        Wrapper for os.path.isdir. Repeats isdir call to overcome network instabilities.
+
+        Parameters
+        ----------
+        directory : Union[str, Path]
+            Path to directory.
+
+        Returns
+        -------
+        bool
+            True if given path is a directory.
+
+        """
+        repeat_times = 40
+        value = False
+        
+        for i in range(repeat_times):
+            value = value or os.path.isdir(directory)
+            
+        return value
+    
+    
+    @staticmethod
+    def isfile(directory: Union[str, Path]) -> bool:
+        """
+        Wrapper for os.path.isfile. Repeats isflie call to overcome network instabilities.
+
+        Parameters
+        ----------
+        directory : Union[str, Path]
+            Path to file.
+
+        Returns
+        -------
+        bool
+            True if given path is of a file.
+
+        """
+        repeat_times = 40
+        value = False
+        
+        for i in range(repeat_times):
+            value = value or os.path.isfile(directory)
+            
+        return value
+        
+        
+    @staticmethod
     def patient_directory_yield(root_directory: Union[str, Path]) -> Path:
         """
         Generator of folder directories for the given root path. Expects the
@@ -91,9 +213,9 @@ class Anonymisation():
             The full path to a subfolder in the given root directory.
 
         """
-        for patient_folder in os.listdir(root_directory):
+        for patient_folder in Anonymisation.listdir(root_directory):
             patient_directory = os.path.join(root_directory, patient_folder)
-            if os.path.isdir(patient_directory):
+            if Anonymisation.isdir(patient_directory):
                 yield Path(patient_directory)
         
 
@@ -114,9 +236,9 @@ class Anonymisation():
             The full path to a subfolder in the given patient directory.
 
         """
-        for sequence_folder in os.listdir(patient_directory):
+        for sequence_folder in Anonymisation.listdir(patient_directory):
             sequence_directory = os.path.join(patient_directory, sequence_folder)
-            if os.path.isdir(sequence_directory):
+            if Anonymisation.isdir(sequence_directory):
                 yield Path(sequence_directory)         
 
 
@@ -139,9 +261,9 @@ class Anonymisation():
             folder.
 
         """
-        for dicom_file in os.listdir(sequence_directory):
+        for dicom_file in Anonymisation.listdir(sequence_directory):
             dicom_directory = os.path.join(sequence_directory, dicom_file)
-            if os.path.isfile(dicom_directory) and dicom_file.endswith('.dcm'):
+            if Anonymisation.isfile(dicom_directory) and dicom_file.endswith('.dcm'):
                 yield dicom_directory
 
 
@@ -158,7 +280,7 @@ class Anonymisation():
         """
         os.makedirs(os.path.dirname(os.path.abspath(self.json_directory)), exist_ok=True)
         with open(self.json_directory, 'w') as fp:
-            json.dump(self.mapping, fp)
+            Anonymisation.retry_function(20, json.dump)(self.mapping, fp)
     
     
     def load_json_mapping(self) -> None:
@@ -171,9 +293,9 @@ class Anonymisation():
         None
 
         """
-        if os.path.isfile(self.json_directory):
+        if Anonymisation.isfile(self.json_directory):
             with open(self.json_directory, 'r') as fp:
-                self.mapping = json.load(fp)
+                self.mapping = Anonymisation.retry_function(20, json.load)(fp)
     
 
     def extract_key_info(self, dataset: pydicom.Dataset) -> Dict[str, Any]:
@@ -438,7 +560,7 @@ class Anonymisation():
         return dataset, new_patient_name
     
     
-    def anonymise(self, compress: bool = True) -> None:
+    def anonymise(self, compress: bool = False) -> None:
         """
         Anonymises all patient datasets in the root directory, as set during
         the class constructor. A json file is created to keep record of the link
@@ -458,14 +580,16 @@ class Anonymisation():
                 print('Anonymising directory {}'.format(patient_directory))
             new_name = None
             for sequence_directory in self.sequence_directory_yield(patient_directory):
+                sequence_name = os.path.basename(sequence_directory)
+                
                 for dicom_file in self.dicom_directory_yield(sequence_directory):
                     # Read and anonymise
-                    dataset = pydicom.dcmread(dicom_file, force=True)
+                    dataset = Anonymisation.retry_function(50, pydicom.dcmread)(dicom_file, force=True)
                     dataset, new_name = self.anonymise_dicom(dataset)
                     # Save the anonymised DICOM file to target directory
                     os.makedirs(os.path.join(self.target_directory, new_name), exist_ok=True)
-                    file_name = os.path.basename(dicom_file)
-                    dataset.save_as(os.path.join(self.target_directory, new_name, file_name))
+                    file_name = sequence_name + '_' + os.path.basename(dicom_file)
+                    Anonymisation.retry_function(50, dataset.save_as)(os.path.join(self.target_directory, new_name, file_name))
             
             # Compress the anonymised patient directory
             if compress:
