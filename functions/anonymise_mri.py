@@ -374,7 +374,7 @@ class Anonymisation():
         Returns
         -------
         bool
-            Returns True if the the patient info exists in the mapping, false
+            Returns True if the patient info exists in the mapping, false
             otherwise.
 
         """

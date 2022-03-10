@@ -35,7 +35,7 @@ def sort(source_dir: Union[str, Path], target_dir: Union[str, Path]) -> None:
     """
     os.makedirs(target_dir, exist_ok=True)
     
-    for folder_name in next(os.walk(source_dir))[2]:
+    for folder_name in next(os.walk(source_dir))[1]:
         if folder_name.startswith('.'):
             continue
         
