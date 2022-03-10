@@ -173,7 +173,7 @@ def rename(target_directory: str) -> None:
     if not target_directory:
         print("'target' is required for 'rename' operation.")
     
-    sequence.rename_descriptors(Path(target_directory))
+    sequence.rename_descriptors(Path(target_directory), None)
     
     
 def sequence_overview(source_directory: str) -> None:

@@ -8,6 +8,8 @@ from pathlib import Path
 
 from pivottablejs import pivot_ui
 
+from functions.cataloguing import group
+
 
 def get_descriptions(directory: Union[str, Path]) -> Set[str]:
     """
@@ -101,7 +103,7 @@ def read_csv_descriptor_renaming() -> Dict[str, str]:
     return rename_mapping
     
 
-def rename_descriptors(directory: Union[str, Path], rename: Dict[str, str]) -> None:
+def rename_descriptors(directory: Union[str, Path], rename: Union[Dict[str, str], None]) -> None:
     """
     In-place operation renaming the the sorted folder sequences. The folders
     arer expected to have the format: 'Series<number>_<sequence_description>'.
@@ -114,7 +116,8 @@ def rename_descriptors(directory: Union[str, Path], rename: Dict[str, str]) -> N
     rename : Dict[str, str]
         A string to string dictionary containing the mapping of original to
         renamed sequence description. If a key does not exist in the dictionary
-        then it will not be altered.
+        then it will not be altered. 'None' can be passed  to rename all sequences
+        based on internal renaming.
 
     Returns
     -------
@@ -126,8 +129,20 @@ def rename_descriptors(directory: Union[str, Path], rename: Dict[str, str]) -> N
             # Folder naming is expected to have the format: Series<number>_<series_description>
             series, description = subfolder_name.split('_', 1)
 
+            if rename is None:
+                labels = group.Categories.get_label(description)
+                if labels['type'] == 'Other':
+                    continue
+                new_folder_name = series + '_' + labels['type']
+                if not labels['anatomy'] is None:
+                    new_folder_name = new_folder_name + '_' + labels['anatomy']
+                    
+                root_directory = os.path.join(directory, folder_name)
+                
+                os.rename(os.path.join(root_directory, subfolder_name),
+                          os.path.join(root_directory, new_folder_name))
             # Check if the series description needs to be renamed            
-            if description in rename:
+            elif description in rename:
                 new_folder_name = series + '_' + rename[description]
                 root_directory = os.path.join(directory, folder_name)
                 
