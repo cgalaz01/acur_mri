@@ -37,3 +37,22 @@ The final step renames the subfolders so that they are consistent when querying 
     python script.py -c --source="path/to/anonymised/and/sorted/source/directory"
 
 Folder renaming will be done in-place on the given source directory.
+
+## Citation
+If you found this code useful for your project please cite as:
+```
+@article{galazis2021framework,
+  title={{Framework for large-scale automatic curation of heterogeneous cardiac MRI (ACUR MRI)}},
+  author={Galazis, C and Vimalesvaran, K and Zaman, S and Petri, C and Howard, J and Linton, N and Peters, N and Cole, G and Bharath, AA and Varela, M},
+  journal={European Heart Journal-Cardiovascular Imaging},
+  volume={22},
+  number={Supplement\_2},
+  pages={jeab090--131},
+  year={2021},
+  publisher={Oxford University Press}
+}
+```
+	
+## Acknowledgement
+This project was supported by the UK Research and Innovation (UKRI) Centres of Doctoral Training (CDT) in Artificial Intelligence for Healthcare (AI4H) http://ai4health.io (Grant No. EP/S023283/1) and the British Heart Foundation Centre of Research
+Excellence at Imperial College London (RE/18/4/34215).
